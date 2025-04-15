@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  database:
+    image: postgres:15
+    container_name: postgres-handover
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=prisma-with-postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./api
+    container_name: api-handover
+    depends_on:
+      - database
+    ports:
+      - 3030:3030
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@database:5432/prisma-with-postgres
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    command:
+      [
+        "sh",
+        "-c",
+        "npx prisma generate --schema=./prisma/schema.prisma && node src/server.js",
+      ]
+
+  redis:
+    image: redis
+    container_name: redis-handover
+    ports:
+      - 6379:6379
+    depends_on:
+      - api
+
+  app:
+    build: ./app-handover
+    container_name: app-handover
+    depends_on:
+      - api
+    ports:
+      - 3000:3000
+
+volumes:
+  postgres_data:
